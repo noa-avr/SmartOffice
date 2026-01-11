@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # 1. SQL database for the Auth Service
+  auth-db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: authdb
+    ports:
+      - "5432:5432"
+
+  # 2. NoSQL database for the Assets Service
+  assets-db:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+
+  # 3. Identity & Auth Service
+  auth-service:
+    build: 
+      context: ./IdentityAuthService
+    ports:
+      - "5201:8080"
+    depends_on:
+      - auth-db
+    restart: on-failure
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=auth-db;Database=authdb;Username=admin;Password=password123
+
+  # 4. Resource Management Service
+  resource-service:
+    build: 
+      context: ./ResourceManagementService
+    ports:
+      - "5298:8080"
+    depends_on:
+      - assets-db
+    environment:
+      - MongoDB__ConnectionString=mongodb://assets-db:27017
+      - MongoDB__DatabaseName=SmartOfficeDB
+  # 5. Frontend Application
+  frontend:
+    build:
+      context: ./smart-office-client
+    ports:
+      - "3000:80"
+    depends_on:
+      - auth-service
+      - resource-service
+    
